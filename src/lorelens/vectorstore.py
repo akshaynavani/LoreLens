@@ -57,8 +57,14 @@ class PineconeStore:
             metric="cosine",
             spec=ServerlessSpec(cloud=self.settings.pinecone_cloud, region=self.settings.pinecone_region),
         )
-        while not self.client.describe_index(self.index_name).status.get("ready"):
+        while not self._is_ready():
             time.sleep(1)
+
+    def _is_ready(self) -> bool:
+        status = self.client.describe_index(self.index_name).status
+        if isinstance(status, dict):
+            return bool(status.get("ready"))
+        return bool(getattr(status, "ready", False))
 
     @property
     def index(self):  # noqa: ANN201 - pinecone.Index type differs across SDK versions
