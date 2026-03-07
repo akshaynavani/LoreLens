@@ -118,6 +118,10 @@ class IngestionPipeline:
                     content_hash=meta.content_hash,
                     chunk_ids=[c.chunk_id for c in chunks],
                     strategy=strategy,
+                    title=meta.title,
+                    product=meta.product,
+                    version=meta.version,
+                    doc_type=meta.doc_type,
                 )
                 stats.documents_indexed += 1
             except Exception as exc:  # noqa: BLE001

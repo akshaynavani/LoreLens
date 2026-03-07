@@ -146,6 +146,13 @@ class PineconeStore:
         order = {cid: i for i, cid in enumerate(ids)}
         return sorted(out, key=lambda c: order.get(c.chunk_id, 1_000_000))
 
+    def list_ids(self, prefix: str, namespace: str | None = None) -> list[str]:
+        """List vector ids by prefix (serverless indexes only); used to rebuild whole pages."""
+        ids: list[str] = []
+        for page in self.index.list(prefix=prefix, namespace=namespace or self.namespace):
+            ids.extend(page)
+        return ids
+
     def stats(self) -> dict[str, Any]:
         s = self.index.describe_index_stats()
         return {

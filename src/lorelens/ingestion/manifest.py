@@ -14,6 +14,10 @@ class ManifestEntry(BaseModel):
     content_hash: str
     chunk_ids: list[str] = Field(default_factory=list)
     strategy: str
+    title: str | None = None
+    product: str | None = None
+    version: str | None = None
+    doc_type: str | None = None
 
 
 class Manifest(BaseModel):
@@ -35,6 +39,16 @@ class Manifest(BaseModel):
         tmp = path.with_suffix(".tmp")
         tmp.write_text(json.dumps(self.model_dump(), indent=2))
         tmp.replace(path)
+
+    def catalog(self) -> dict[str, dict[str, int]]:
+        """Return {product: {version: page_count}} for the tools that describe the corpus."""
+        out: dict[str, dict[str, int]] = {}
+        for entry in self.entries.values():
+            product = entry.product or "unknown"
+            version = entry.version or "unversioned"
+            out.setdefault(product, {}).setdefault(version, 0)
+            out[product][version] += 1
+        return out
 
     def is_unchanged(self, doc_id: str, content_hash: str, strategy: str) -> bool:
         entry = self.entries.get(doc_id)
