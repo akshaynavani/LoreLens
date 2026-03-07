@@ -32,12 +32,20 @@ def _path_segments(doc: SourceDocument) -> list[str]:
     return [s for s in PurePosixPath(raw).parts if s not in ("/", "")]
 
 
+def normalize_version(value: str) -> str:
+    """`2`, `v2`, `V2` -> `v2`; `latest`/`stable` are kept as-is."""
+    value = str(value).strip().lower()
+    if value in ("latest", "stable"):
+        return value
+    return value if value.startswith("v") else f"v{value}"
+
+
 def detect_version(doc: SourceDocument) -> str | None:
     if v := doc.metadata.get("version"):
-        return str(v)
+        return normalize_version(v)
     for seg in _path_segments(doc)[:-1]:
         if m := _VERSION_SEGMENT_RE.fullmatch(seg):
-            return m.group(1).lower()
+            return normalize_version(m.group(1))
     return None
 
 
