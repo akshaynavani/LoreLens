@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     max_tool_calls: int = 6
     mcp_server_command: str = "python"
     mcp_server_args: list[str] = Field(default_factory=lambda: ["-m", "lorelens.mcp_server"])
+    mcp_server_url: str | None = None  # e.g. http://localhost:8765/mcp (streamable HTTP)
 
     # --- LangFuse ---
     langfuse_public_key: str | None = Field(default=None, validation_alias="LANGFUSE_PUBLIC_KEY")
