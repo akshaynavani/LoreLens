@@ -28,6 +28,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         env_prefix="LORELENS_",
         extra="ignore",
+        env_ignore_empty=True,
     )
 
     # --- OpenAI ---
