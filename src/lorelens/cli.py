@@ -80,5 +80,76 @@ def stats() -> None:
     console.print_json(json.dumps(PineconeStore().stats()))
 
 
+@app.command()
+def search(
+    query: str,
+    product: str | None = typer.Option(None),
+    version: str | None = typer.Option(None),
+    doc_type: str | None = typer.Option(None),
+    top_k: int = typer.Option(5),
+) -> None:
+    """Run raw retrieval (no LLM) and print the matching chunks."""
+    from lorelens.retrieval.service import get_search_service
+    from lorelens.tools.core import search_docs
+
+    payload = json.loads(search_docs(get_search_service(), query, product, version, doc_type, top_k))
+    for i, r in enumerate(payload["results"], start=1):
+        console.rule(f"[{i}] {r['title']} > {r.get('section') or ''}  score={r['score']}")
+        console.print(f"[dim]{r.get('url') or r.get('source')}  {r.get('product')} {r.get('version')}[/dim]")
+        console.print(r["text"][:600])
+
+
+@app.command()
+def ask(
+    question: str,
+    product: str | None = typer.Option(None, help="Restrict to a product."),
+    version: str | None = typer.Option(None, help="Restrict to a version, e.g. v2."),
+    mode: str | None = typer.Option(None, help="Tool transport override: local | mcp."),
+    show_trace: bool = typer.Option(False, help="Print node timings and evidence."),
+) -> None:
+    """Ask the agent a question and print a cited answer."""
+    from lorelens.agent.graph import LoreLensAgent
+    from lorelens.models import SearchFilters
+
+    settings = get_settings()
+    if mode:
+        settings = settings.model_copy(update={"tool_mode": mode})
+
+    async def _run() -> None:
+        agent = await LoreLensAgent.create(settings)
+        answer, state = await agent.arun(
+            question, filters=SearchFilters(product=product, version=version)
+        )
+        console.rule("Answer")
+        console.print(answer.answer)
+        if answer.citations:
+            console.rule("Sources")
+            for c in answer.citations:
+                console.print(f"[{c.index}] {c.title} > {c.section or ''}  {c.url or c.source}")
+        console.print(
+            f"[dim]latency={answer.latency_ms}ms rewrites={answer.rewrites} "
+            f"tool_calls={answer.tool_calls} grounded={answer.grounded}[/dim]"
+        )
+        if show_trace:
+            console.rule("Trace")
+            console.print_json(json.dumps(state.get("node_timings", {})))
+            console.print(f"queries: {state.get('tried_queries')}")
+            console.print(f"filters: {state.get('filters')}")
+
+    asyncio.run(_run())
+
+
+@app.command()
+def mcp(
+    transport: str = typer.Option("stdio", help="stdio | sse | streamable-http"),
+    host: str = typer.Option("127.0.0.1"),
+    port: int = typer.Option(8765),
+) -> None:
+    """Run the LoreLens MCP server."""
+    from lorelens.mcp_server import build_server
+
+    build_server(host, port).run(transport=transport)
+
+
 if __name__ == "__main__":
     app()
