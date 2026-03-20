@@ -11,6 +11,14 @@ from pydantic import BaseModel, Field
 from lorelens.models import Citation, DocType, RetrievedChunk, SearchFilters
 
 
+def sum_timings(left: dict[str, float] | None, right: dict[str, float] | None) -> dict[str, float]:
+    """Reducer: nodes that run several times (prefetch, research) accumulate their time."""
+    out = dict(left or {})
+    for key, value in (right or {}).items():
+        out[key] = round(out.get(key, 0.0) + value, 1)
+    return out
+
+
 class QueryAnalysis(BaseModel):
     """Structured output of the analyze node."""
 
@@ -57,7 +65,7 @@ class AgentState(TypedDict, total=False):
     grade: GradeResult
     rewrites: int
     tool_calls: int
-    node_timings: dict[str, float]
+    node_timings: Annotated[dict[str, float], sum_timings]
 
     # ---- output
     answer: str

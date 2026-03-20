@@ -7,6 +7,8 @@ prompt management and iterated there; the registry falls back to these defaults.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
+from typing import Any, Protocol
 
 ANALYZE_PROMPT = """You analyze questions for a technical documentation search assistant.
 
@@ -90,3 +92,22 @@ _VAR_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 def compile_template(template: str, **variables: object) -> str:
     """Mustache-style `{{var}}` substitution matching LangFuse's `prompt.compile`."""
     return _VAR_RE.sub(lambda m: str(variables.get(m.group(1), m.group(0))), template)
+
+
+@dataclass
+class RenderedPrompt:
+    text: str
+    # Extra run metadata, e.g. {"langfuse_prompt": <prompt>} to link generations to versions.
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+class PromptProvider(Protocol):
+    def render(self, name: str, **variables: object) -> RenderedPrompt: ...
+
+
+class LocalPromptProvider:
+    def __init__(self, prompts: dict[str, str] | None = None) -> None:
+        self.prompts = prompts or DEFAULT_PROMPTS
+
+    def render(self, name: str, **variables: object) -> RenderedPrompt:
+        return RenderedPrompt(compile_template(self.prompts[name], **variables))
