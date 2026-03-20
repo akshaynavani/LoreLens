@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import sys
 
+from rich.console import Console
 from rich.logging import RichHandler
 
 _CONFIGURED = False
@@ -25,7 +26,8 @@ def configure_logging(level: str = "INFO", *, stderr_only: bool = False) -> None
         handler = logging.StreamHandler(sys.stderr)
         handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     else:
-        handler = RichHandler(rich_tracebacks=True, show_path=False)
+        # Always log to stderr: stdout is reserved for CLI output and the MCP stdio protocol.
+        handler = RichHandler(console=Console(stderr=True), rich_tracebacks=True, show_path=False)
 
     logging.basicConfig(level=level.upper(), handlers=[handler], format="%(message)s")
     for noisy in ("httpx", "httpcore", "urllib3", "openai"):
