@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     prompt_label: str = "production"
 
     # --- API ---
+    ingest_root: Path = Path("data")  # API ingest requests may only read below this dir
     api_key: SecretStr | None = None
     log_level: str = "INFO"
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
