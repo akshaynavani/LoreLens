@@ -110,6 +110,7 @@ def ask(
     """Ask the agent a question and print a cited answer."""
     from lorelens.agent.graph import LoreLensAgent
     from lorelens.models import SearchFilters
+    from lorelens.observability import flush, traced_run
 
     settings = get_settings()
     if mode:
@@ -117,9 +118,16 @@ def ask(
 
     async def _run() -> None:
         agent = await LoreLensAgent.create(settings)
-        answer, state = await agent.arun(
-            question, filters=SearchFilters(product=product, version=version)
-        )
+        async with traced_run(
+            "lorelens-ask", input={"question": question}, tags=["cli", settings.tool_mode]
+        ) as trace:
+            answer, state = await agent.arun(
+                question,
+                filters=SearchFilters(product=product, version=version),
+                config=trace.config,
+            )
+            trace.set_output(answer.answer, citations=len(answer.citations))
+        flush()
         console.rule("Answer")
         console.print(answer.answer)
         if answer.citations:
@@ -130,6 +138,8 @@ def ask(
             f"[dim]latency={answer.latency_ms}ms rewrites={answer.rewrites} "
             f"tool_calls={answer.tool_calls} grounded={answer.grounded}[/dim]"
         )
+        if trace.trace_id:
+            console.print(f"[dim]langfuse trace: {trace.trace_id}[/dim]")
         if show_trace:
             console.rule("Trace")
             console.print_json(json.dumps(state.get("node_timings", {})))
@@ -137,6 +147,15 @@ def ask(
             console.print(f"filters: {state.get('filters')}")
 
     asyncio.run(_run())
+
+
+@app.command("push-prompts")
+def push_prompts(label: list[str] = typer.Option(None, help="Labels to attach.")) -> None:
+    """Upload the bundled prompt templates to LangFuse prompt management."""
+    from lorelens.observability import push_default_prompts
+
+    for name in push_default_prompts(label or None):
+        console.print(f"pushed {name}")
 
 
 @app.command()
