@@ -23,7 +23,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from lorelens.agent.nodes import AgentNodes, timed
-from lorelens.agent.prompts import LocalPromptProvider, PromptProvider
+from lorelens.agent.prompts import PromptProvider
 from lorelens.agent.state import AgentState, ChatTurn
 from lorelens.config import Settings, get_settings
 from lorelens.models import Answer, SearchFilters
@@ -100,7 +100,9 @@ class LoreLensAgent:
             fast_llm = fast_llm or get_chat_model("fast")
             answer_llm = answer_llm or get_chat_model("answer")
         if prompts is None:
-            prompts = LocalPromptProvider()
+            from lorelens.observability import get_prompt_provider
+
+            prompts = get_prompt_provider()
         if catalog_fn is None:
             catalog_fn = _catalog_from_manifest(settings)
 
