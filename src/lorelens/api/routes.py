@@ -224,7 +224,8 @@ async def ingest(
     path = _resolve_ingest_path(settings, req.path)
     job = IngestJob(job_id=uuid.uuid4().hex, status="queued")
     _JOBS[job.job_id] = job
-    background.add_task(asyncio.to_thread, _run_ingest, job.job_id, path, req, service)
+    # Sync task: Starlette runs it in its threadpool after the response is sent.
+    background.add_task(_run_ingest, job.job_id, path, req, service)
     return job
 
 
