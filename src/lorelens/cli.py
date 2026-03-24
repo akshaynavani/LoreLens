@@ -149,6 +149,18 @@ def ask(
     asyncio.run(_run())
 
 
+@app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0"),
+    port: int = typer.Option(8000),
+    reload: bool = typer.Option(False),
+) -> None:
+    """Run the FastAPI service."""
+    import uvicorn
+
+    uvicorn.run("lorelens.api.app:app", host=host, port=port, reload=reload)
+
+
 @app.command("push-prompts")
 def push_prompts(label: list[str] = typer.Option(None, help="Labels to attach.")) -> None:
     """Upload the bundled prompt templates to LangFuse prompt management."""

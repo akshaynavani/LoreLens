@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - lorelens-cache:/app/.cache   # embedding cache + ingestion manifest
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mcp:
+    build: .
+    env_file: .env
+    command: ["python", "-m", "lorelens.mcp_server", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8765"]
+    ports:
+      - "8765:8765"
+    volumes:
+      - lorelens-cache:/app/.cache
+
+volumes:
+  lorelens-cache:
