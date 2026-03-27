@@ -29,6 +29,7 @@ class Settings(BaseSettings):
         env_prefix="LORELENS_",
         extra="ignore",
         env_ignore_empty=True,
+        populate_by_name=True,
     )
 
     # --- OpenAI ---
