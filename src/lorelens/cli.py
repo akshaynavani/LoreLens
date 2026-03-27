@@ -170,6 +170,58 @@ def push_prompts(label: list[str] = typer.Option(None, help="Labels to attach.")
         console.print(f"pushed {name}")
 
 
+@app.command("eval")
+def run_eval(
+    dataset: Path = typer.Option(Path("data/eval/sample_eval.jsonl"), help="JSONL eval set."),
+    langfuse_dataset: str | None = typer.Option(
+        None, help="Sync the JSONL to this LangFuse dataset and record a dataset run."
+    ),
+    run_name: str | None = typer.Option(None, help="Name of the experiment run."),
+    k: int = typer.Option(5, help="k for hit-rate@k."),
+    concurrency: int = typer.Option(4),
+    judge: bool = typer.Option(True, help="Score answers with the LLM judge."),
+    mode: str | None = typer.Option(None, help="Tool transport override: local | mcp."),
+    output: Path = typer.Option(Path("reports/eval_report.json")),
+) -> None:
+    """Evaluate retrieval + answer quality and latency on a QA dataset."""
+    from lorelens.agent.graph import LoreLensAgent
+    from lorelens.agent.llm import get_chat_model
+    from lorelens.evals.dataset import dump_report, example_from_item, load_jsonl, sync_to_langfuse
+    from lorelens.evals.judge import AnswerJudge
+    from lorelens.evals.runner import EvalRunner
+    from lorelens.observability import get_langfuse
+
+    settings = get_settings()
+    if mode:
+        settings = settings.model_copy(update={"tool_mode": mode})
+    examples = load_jsonl(dataset)
+    items = None
+    if langfuse_dataset:
+        client = get_langfuse()
+        if client is None:
+            raise typer.BadParameter("--langfuse-dataset requires LANGFUSE_* keys")
+        sync_to_langfuse(client, langfuse_dataset, examples)
+        items = client.get_dataset(langfuse_dataset).items
+        examples = [example_from_item(it) for it in items]
+
+    async def _run() -> dict:
+        agent = await LoreLensAgent.create(settings)
+        runner = EvalRunner(
+            agent,
+            AnswerJudge(get_chat_model("answer")) if judge else None,
+            k=k,
+            concurrency=concurrency,
+            run_name=run_name,
+        )
+        return await runner.run(examples, items)
+
+    report = asyncio.run(_run())
+    dump_report(output, report)
+    console.rule(f"Eval summary ({len(examples)} examples)")
+    console.print_json(json.dumps(report["summary"], default=str))
+    console.print(f"Full report written to {output}")
+
+
 @app.command()
 def mcp(
     transport: str = typer.Option("stdio", help="stdio | sse | streamable-http"),
