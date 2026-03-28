@@ -290,7 +290,12 @@ class AgentNodes:
 
     async def collect(self, state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         found: list[RetrievedChunk] = []
-        for msg in state.get("messages", []):
+        # Only this round's tool results. Earlier rounds end at a rewrite note; their
+        # chunks were already graded, and re-adding the rejected ones would crowd new
+        # evidence out of the grader's window.
+        for msg in reversed(state.get("messages", [])):
+            if isinstance(msg, HumanMessage):
+                break
             if isinstance(msg, ToolMessage):
                 found.extend(parse_tool_payload(tool_output_text(msg)))
         return {"documents": merge_documents(state.get("documents", []), found)}

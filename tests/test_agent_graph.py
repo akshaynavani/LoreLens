@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from lorelens.agent.graph import LoreLensAgent, build_graph
 from lorelens.agent.nodes import AgentNodes, extract_citations, parse_tool_payload
@@ -123,3 +123,29 @@ def test_parse_tool_payload_and_citations():
 
     cites = extract_citations("A [2]. B [1][2]. C [9].", [make_chunk(1), make_chunk(2)])
     assert [c.index for c in cites] == [2, 1]
+
+
+async def test_collect_ignores_tool_results_from_before_a_rewrite(settings, prompts):
+    nodes = AgentNodes(
+        fast_llm=FakeFastLLM(_analysis()),
+        answer_llm=FakeAnswerLLM(),
+        tools=build_local_tools(FakeSearchService()),  # type: ignore[arg-type]
+        prompts=prompts,
+        settings=settings,
+    )
+    old = json.dumps({"results": [make_chunk(9).model_dump()]})
+    new = json.dumps({"results": [make_chunk(3).model_dump()]})
+    call = {"name": "search_docs", "args": {"query": "q"}, "id": "c1"}
+    messages = [
+        AIMessage("", tool_calls=[call]),
+        ToolMessage(old, tool_call_id="c1"),
+        AIMessage("DONE"),
+        HumanMessage("Evidence is still missing: x. Continue gathering evidence, then reply DONE."),
+        AIMessage("", tool_calls=[{**call, "id": "c2"}]),
+        ToolMessage(new, tool_call_id="c2"),
+        AIMessage("DONE"),
+    ]
+
+    update = await nodes.collect({"messages": messages, "documents": []}, {})
+
+    assert [d.chunk_id for d in update["documents"]] == ["doc3#0"]  # doc9 was graded already
