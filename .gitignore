@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.python-version
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# LoreLens runtime artifacts (embedding cache, ingestion manifest, eval reports)
+.cache/
+reports/
+
+# HuggingFace / model downloads
+.hf_cache/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
